@@ -1,0 +1,177 @@
+<main class="shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Local multimodal RAG</p>
+      <h1>AI Interview Coach</h1>
+    </div>
+    <div class="status" [class.error]="error">
+      <span>{{ error || status }}</span>
+    </div>
+  </header>
+
+  <section class="workspace">
+    <aside class="left-rail">
+      <section class="panel">
+        <div class="panel-title">
+          <lucide-icon name="file-text" [size]="18"></lucide-icon>
+          <h2>Sources</h2>
+        </div>
+
+        <label class="field">
+          <span>Role</span>
+          <input [(ngModel)]="roleTitle" placeholder="Role title">
+        </label>
+
+        <label class="field">
+          <span>Focus skills</span>
+          <input [(ngModel)]="focusSkills" placeholder="Python, RAG, Angular">
+        </label>
+
+        <div class="upload-list">
+          <div class="upload-row">
+            <div>
+              <strong>Resume</strong>
+              <small>{{ resumeUpload?.chunk_count || 0 }} chunks</small>
+            </div>
+            <label class="icon-button" title="Choose resume">
+              <lucide-icon name="upload" [size]="18"></lucide-icon>
+              <input type="file" accept=".pdf,.doc,.docx,.txt,.md" (change)="selectFile($event, 'resume')">
+            </label>
+            <button class="compact" type="button" (click)="uploadSelected('resume')">Index</button>
+          </div>
+
+          <div class="upload-row">
+            <div>
+              <strong>Job description</strong>
+              <small>{{ jdUpload?.chunk_count || 0 }} chunks</small>
+            </div>
+            <label class="icon-button" title="Choose job description">
+              <lucide-icon name="upload" [size]="18"></lucide-icon>
+              <input type="file" accept=".pdf,.doc,.docx,.txt,.md" (change)="selectFile($event, 'job_description')">
+            </label>
+            <button class="compact" type="button" (click)="uploadSelected('job_description')">Index</button>
+          </div>
+
+          <div class="upload-row">
+            <div>
+              <strong>Reference</strong>
+              <small>{{ referenceUpload?.chunk_count || 0 }} chunks</small>
+            </div>
+            <label class="icon-button" title="Choose reference document">
+              <lucide-icon name="upload" [size]="18"></lucide-icon>
+              <input type="file" accept=".pdf,.doc,.docx,.txt,.md" (change)="selectFile($event, 'reference')">
+            </label>
+            <button class="compact" type="button" (click)="uploadSelected('reference')">Index</button>
+          </div>
+        </div>
+
+        <button class="primary" type="button" [disabled]="!canStartInterview" (click)="startInterview()">
+          <lucide-icon name="play" [size]="18"></lucide-icon>
+          Start interview
+        </button>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <lucide-icon name="camera" [size]="18"></lucide-icon>
+          <h2>Video</h2>
+        </div>
+        <video #preview autoplay muted playsinline></video>
+        <div class="button-grid">
+          <button type="button" (click)="startCamera()" [disabled]="isCameraOn" title="Start camera">
+            <lucide-icon name="video" [size]="17"></lucide-icon>
+            Camera
+          </button>
+          <button type="button" (click)="startRecording()" [disabled]="!isCameraOn || isRecording || !session" title="Start recording">
+            <lucide-icon name="mic" [size]="17"></lucide-icon>
+            Record
+          </button>
+          <button type="button" (click)="stopRecording()" [disabled]="!isRecording" title="Stop recording">
+            <lucide-icon name="square" [size]="17"></lucide-icon>
+            Stop
+          </button>
+          <button type="button" (click)="stopCamera()" [disabled]="!isCameraOn" title="Stop camera">
+            <lucide-icon name="refresh-ccw" [size]="17"></lucide-icon>
+            Reset
+          </button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="interview">
+      <div class="panel interview-panel">
+        <div class="panel-title">
+          <lucide-icon name="brain-circuit" [size]="18"></lucide-icon>
+          <h2>Interview</h2>
+        </div>
+
+        <div class="conversation" aria-live="polite">
+          <article *ngFor="let item of chat" class="message" [class.answer]="item.type === 'answer'" [class.feedback]="item.type === 'feedback'">
+            <span>{{ item.type }}</span>
+            <p>{{ item.text }}</p>
+          </article>
+          <article *ngIf="chat.length === 0" class="empty">
+            No active interview.
+          </article>
+        </div>
+
+        <form class="answer-box" (ngSubmit)="sendAnswer()">
+          <textarea [(ngModel)]="answer" name="answer" rows="5" placeholder="Type your answer"></textarea>
+          <button class="primary send" type="submit" [disabled]="!session || !answer.trim()">
+            <lucide-icon name="send" [size]="18"></lucide-icon>
+            Send
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <aside class="right-rail">
+      <section class="panel">
+        <div class="panel-title">
+          <lucide-icon name="bar-chart-3" [size]="18"></lucide-icon>
+          <h2>Scores</h2>
+        </div>
+        <div class="scores" *ngIf="scoreEntries.length; else noScores">
+          <div class="score-row" *ngFor="let score of scoreEntries">
+            <div>
+              <strong>{{ score.key.replace('_', ' ') }}</strong>
+              <small>{{ score.value | number:'1.0-1' }}/100</small>
+            </div>
+            <progress max="100" [value]="score.value"></progress>
+          </div>
+        </div>
+        <ng-template #noScores>
+          <p class="muted">No scores yet.</p>
+        </ng-template>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <lucide-icon name="file-text" [size]="18"></lucide-icon>
+          <h2>Evidence</h2>
+        </div>
+        <div class="evidence-list">
+          <article *ngFor="let item of latestEvidence" class="evidence">
+            <div>
+              <strong>{{ item.source_type }}</strong>
+              <small>{{ item.section || 'section' }} · {{ item.score | number:'1.2-2' }}</small>
+            </div>
+            <p>{{ item.text }}</p>
+          </article>
+          <p class="muted" *ngIf="latestEvidence.length === 0">No evidence retrieved yet.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <lucide-icon name="brain-circuit" [size]="18"></lucide-icon>
+          <h2>Plan</h2>
+        </div>
+        <ul class="plan-list">
+          <li *ngFor="let action of report?.improvement_plan">{{ action }}</li>
+          <li *ngIf="!report?.improvement_plan?.length">Complete one answer to generate a plan.</li>
+        </ul>
+      </section>
+    </aside>
+  </section>
+</main>
