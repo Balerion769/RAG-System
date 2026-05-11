@@ -8,6 +8,7 @@
 - Interview question generation
 - Manual answer submission
 - Source-grounded scoring report
+- Web verification endpoint with citations
 
 ## Phase 2: Interview Engine
 
@@ -16,6 +17,7 @@
 - Audio extraction and transcription
 - Follow-up questions based on previous answers
 - Session memory
+- Draft answer web verification from the UI
 
 ## Phase 3: Advanced RAG
 
@@ -25,6 +27,7 @@
 - Metadata filters
 - Multi-query retrieval
 - Long-term vector memory
+- Search provider hardening with Brave/Tavily keys
 
 ## Phase 4: Agentic ADK Layer
 
@@ -53,4 +56,3 @@ Avoid emotion, personality, demographic, health, or identity inference from vide
 - Background workers
 - Evaluation datasets
 - Deployment profiles
-

@@ -7,6 +7,7 @@ import {
   DocumentUploadResponse,
   ReportResponse,
   StartInterviewResponse,
+  VerificationResponse,
   VideoUploadResponse
 } from '../models';
 
@@ -31,8 +32,11 @@ export class ApiService {
     return this.http.post<StartInterviewResponse>(`${this.baseUrl}/interviews/start`, payload);
   }
 
-  answer(sessionId: string, answer: string): Observable<AnswerResponse> {
-    return this.http.post<AnswerResponse>(`${this.baseUrl}/interviews/${sessionId}/answer`, { answer });
+  answer(sessionId: string, answer: string, webVerification = false): Observable<AnswerResponse> {
+    return this.http.post<AnswerResponse>(`${this.baseUrl}/interviews/${sessionId}/answer`, {
+      answer,
+      web_verification: webVerification
+    });
   }
 
   uploadVideo(sessionId: string, file: Blob, filename = 'interview.webm'): Observable<VideoUploadResponse> {
@@ -44,5 +48,13 @@ export class ApiService {
   report(sessionId: string): Observable<ReportResponse> {
     return this.http.get<ReportResponse>(`${this.baseUrl}/interviews/${sessionId}/report`);
   }
-}
 
+  verifyAnswer(payload: {
+    answer: string;
+    question?: string;
+    role_title?: string;
+    max_claims?: number;
+  }): Observable<VerificationResponse> {
+    return this.http.post<VerificationResponse>(`${this.baseUrl}/verification/check`, payload);
+  }
+}

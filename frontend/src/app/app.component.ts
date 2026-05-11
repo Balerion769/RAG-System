@@ -9,7 +9,8 @@ import {
   DocumentUploadResponse,
   EvidenceItem,
   ReportResponse,
-  StartInterviewResponse
+  StartInterviewResponse,
+  VerificationResponse
 } from './models';
 import { ApiService } from './services/api.service';
 
@@ -53,6 +54,8 @@ export class AppComponent {
   latestEvidence: EvidenceItem[] = [];
   report?: ReportResponse;
   chat: ChatItem[] = [];
+  webVerification = true;
+  latestVerification?: VerificationResponse;
 
   stream?: MediaStream;
   mediaRecorder?: MediaRecorder;
@@ -147,8 +150,11 @@ export class AppComponent {
     this.chat.push({ type: 'answer', text: trimmed });
     this.answer = '';
     try {
-      const response: AnswerResponse = await firstValueFrom(this.api.answer(this.session.session_id, trimmed));
+      const response: AnswerResponse = await firstValueFrom(
+        this.api.answer(this.session.session_id, trimmed, this.webVerification)
+      );
       this.latestEvidence = response.evidence;
+      this.latestVerification = response.verification ?? undefined;
       this.chat.push({ type: 'feedback', text: response.feedback });
       this.chat.push({ type: 'question', text: response.next_question });
       this.session = {
@@ -160,6 +166,29 @@ export class AppComponent {
       this.status = 'Interviewing';
     } catch (error) {
       this.handleError(error, 'Could not score answer');
+    }
+  }
+
+  async verifyDraftAnswer(): Promise<void> {
+    const trimmed = this.answer.trim();
+    if (!trimmed) {
+      this.error = 'Type an answer before verifying.';
+      return;
+    }
+    this.status = 'Verifying';
+    this.error = '';
+    try {
+      this.latestVerification = await firstValueFrom(
+        this.api.verifyAnswer({
+          answer: trimmed,
+          question: this.session?.question,
+          role_title: this.roleTitle,
+          max_claims: 5
+        })
+      );
+      this.status = 'Verified';
+    } catch (error) {
+      this.handleError(error, 'Web verification failed');
     }
   }
 
@@ -258,5 +287,28 @@ export class AppComponent {
     console.error(error);
     this.error = fallback;
     this.status = 'Needs attention';
+  }
+
+  verdictLabel(value: string | undefined): string {
+    if (!value) {
+      return 'not checked';
+    }
+    return value.replaceAll('_', ' ');
+  }
+
+  verdictClass(value: string | undefined): string {
+    if (!value) {
+      return 'neutral';
+    }
+    if (value === 'verified') {
+      return 'verified';
+    }
+    if (value === 'partially_verified') {
+      return 'partial';
+    }
+    if (value === 'needs_review') {
+      return 'review';
+    }
+    return 'unverified';
   }
 }

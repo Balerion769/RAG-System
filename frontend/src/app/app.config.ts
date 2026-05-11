@@ -4,15 +4,20 @@ import {
   BarChart3,
   BrainCircuit,
   Camera,
+  CheckCircle2,
+  ExternalLink,
   FileText,
+  Globe2,
   LucideAngularModule,
   Mic,
   Play,
   RefreshCcw,
   Send,
+  ShieldCheck,
   Square,
   Upload,
-  Video
+  Video,
+  XCircle
 } from 'lucide-angular';
 
 export const appConfig: ApplicationConfig = {
@@ -23,14 +28,19 @@ export const appConfig: ApplicationConfig = {
         BarChart3,
         BrainCircuit,
         Camera,
+        CheckCircle2,
+        ExternalLink,
         FileText,
+        Globe2,
         Mic,
         Play,
         RefreshCcw,
         Send,
+        ShieldCheck,
         Square,
         Upload,
-        Video
+        Video,
+        XCircle
       })
     )
   ]

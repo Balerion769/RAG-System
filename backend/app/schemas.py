@@ -37,6 +37,42 @@ class EvidenceItem(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class WebSourceItem(BaseModel):
+    title: str
+    url: str
+    snippet: str
+    provider: str
+    fetched_text: str = ""
+    score: float = 0.0
+
+
+class ClaimCheckItem(BaseModel):
+    claim: str
+    verdict: str
+    confidence: float
+    explanation: str
+    sources: list[WebSourceItem] = Field(default_factory=list)
+
+
+class VerificationRequest(BaseModel):
+    answer: str
+    question: str | None = None
+    role_title: str | None = None
+    max_claims: int = Field(default=5, ge=1, le=8)
+
+
+class VerificationResponse(BaseModel):
+    enabled: bool
+    provider: str
+    overall_verdict: str
+    overall_score: float
+    summary: str
+    corrected_answer: str
+    claims: list[ClaimCheckItem] = Field(default_factory=list)
+    sources: list[WebSourceItem] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+
+
 class StartInterviewRequest(BaseModel):
     role_title: str = "AI/ML Engineer"
     resume_document_id: str | None = None
@@ -52,6 +88,7 @@ class StartInterviewResponse(BaseModel):
 
 class AnswerRequest(BaseModel):
     answer: str
+    web_verification: bool = False
 
 
 class AnswerResponse(BaseModel):
@@ -60,6 +97,7 @@ class AnswerResponse(BaseModel):
     scores: dict[str, float]
     next_question: str
     evidence: list[EvidenceItem]
+    verification: VerificationResponse | None = None
 
 
 class VideoUploadResponse(BaseModel):
@@ -75,6 +113,7 @@ class InterviewTurnResponse(BaseModel):
     feedback: str
     scores: dict[str, float]
     evidence: list[EvidenceItem]
+    verification: VerificationResponse | None = None
     created_at: datetime
 
 
@@ -86,4 +125,3 @@ class ReportResponse(BaseModel):
     overall_scores: dict[str, float]
     improvement_plan: list[str]
     created_at: datetime
-

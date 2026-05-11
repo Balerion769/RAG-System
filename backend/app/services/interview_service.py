@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 import statistics
 import uuid
 
@@ -9,13 +10,19 @@ from app.rag.pipeline import AdvancedRagPipeline
 from app.schemas import StartInterviewRequest
 from app.services.llm import LocalLLMClient
 from app.storage.repositories import repository
+from app.web.verification import AnswerVerificationService
 
 
 class InterviewService:
-    def __init__(self, pipeline: AdvancedRagPipeline) -> None:
+    def __init__(
+        self,
+        pipeline: AdvancedRagPipeline,
+        verification_service: AnswerVerificationService | None = None,
+    ) -> None:
         self.pipeline = pipeline
         self.llm = LocalLLMClient()
         self.evaluator = RagEvaluator()
+        self.verification_service = verification_service or AnswerVerificationService()
 
     async def start_interview(self, request: StartInterviewRequest) -> tuple[InterviewSession, list[Evidence]]:
         evidence = self.pipeline.retrieve(
@@ -48,7 +55,12 @@ class InterviewService:
         repository.save_session(session)
         return session, evidence
 
-    async def submit_answer(self, session_id: str, answer: str) -> tuple[InterviewSession, InterviewTurn]:
+    async def submit_answer(
+        self,
+        session_id: str,
+        answer: str,
+        web_verification: bool = False,
+    ) -> tuple[InterviewSession, InterviewTurn]:
         session = repository.get_session(session_id)
         if not session:
             raise KeyError(f"Interview session not found: {session_id}")
@@ -62,15 +74,28 @@ class InterviewService:
             skills=session.focus_skills,
         )
         scores = self._score_answer(session.current_question, answer, evidence)
+        verification = None
+        if web_verification:
+            verification = await self.verification_service.verify_answer(
+                answer=answer,
+                question=session.current_question,
+                role_title=session.role_title,
+            )
+            scores["web_accuracy"] = round(verification.overall_score, 1)
+
         fallback_feedback = build_feedback(scores, evidence)
+        if verification:
+            fallback_feedback = append_verification_feedback(fallback_feedback, verification.summary)
         feedback = await self.llm.generate(
             system=(
                 "You are an interview coach. Give direct, kind feedback grounded only in the "
-                "resume/JD evidence and the candidate answer. Do not infer protected traits."
+                "resume/JD evidence, web verification results when provided, and the candidate answer. "
+                "Do not infer protected traits. If web sources do not prove a claim, say it is not verified."
             ),
             prompt=(
                 f"Question:\n{session.current_question}\n\nAnswer:\n{answer}\n\n"
                 f"Scores:\n{scores}\n\nEvidence:\n{format_evidence(evidence)}\n\n"
+                f"Web verification:\n{verification.summary if verification else 'Not requested.'}\n\n"
                 "Return concise feedback with strengths, gaps, and one improvement action."
             ),
             fallback=fallback_feedback,
@@ -91,6 +116,7 @@ class InterviewService:
             feedback=feedback.strip(),
             scores=scores,
             evidence=evidence,
+            verification=asdict(verification) if verification else None,
         )
         session.turns.append(turn)
         session.current_question = next_question.strip()
@@ -176,6 +202,10 @@ def build_feedback(scores: dict[str, float], evidence: list[Evidence]) -> str:
     )
 
 
+def append_verification_feedback(feedback: str, verification_summary: str) -> str:
+    return f"{feedback} Web verification: {verification_summary}"
+
+
 def make_follow_up(role_title: str, scores: dict[str, float]) -> str:
     weakest = min(scores.items(), key=lambda item: item[1])[0]
     if weakest == "technical_depth":
@@ -185,4 +215,3 @@ def make_follow_up(role_title: str, scores: dict[str, float]) -> str:
     if weakest == "communication":
         return "Can you restate the same answer using situation, task, action, and result in under two minutes?"
     return f"How does that experience map directly to the responsibilities of a {role_title}?"
-

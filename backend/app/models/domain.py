@@ -59,6 +59,7 @@ class InterviewTurn:
     feedback: str
     scores: dict[str, float]
     evidence: list[Evidence]
+    verification: dict[str, Any] | None = None
     created_at: datetime = field(default_factory=utc_now)
 
 
@@ -73,4 +74,3 @@ class InterviewSession:
     turns: list[InterviewTurn] = field(default_factory=list)
     status: str = "active"
     created_at: datetime = field(default_factory=utc_now)
-

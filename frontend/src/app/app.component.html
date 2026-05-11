@@ -1,13 +1,38 @@
 <main class="shell">
   <header class="topbar">
-    <div>
-      <p class="eyebrow">Local multimodal RAG</p>
-      <h1>AI Interview Coach</h1>
+    <div class="brand">
+      <div class="brand-mark">
+        <lucide-icon name="brain-circuit" [size]="22"></lucide-icon>
+      </div>
+      <div>
+        <p class="eyebrow">Local RAG interview system</p>
+        <h1>AI Interview Coach</h1>
+      </div>
     </div>
+
     <div class="status" [class.error]="error">
       <span>{{ error || status }}</span>
     </div>
   </header>
+
+  <section class="metric-strip">
+    <div>
+      <span>Sources</span>
+      <strong>{{ (resumeUpload ? 1 : 0) + (jdUpload ? 1 : 0) + (referenceUpload ? 1 : 0) }}/3</strong>
+    </div>
+    <div>
+      <span>Session</span>
+      <strong>{{ session ? 'Active' : 'Idle' }}</strong>
+    </div>
+    <div>
+      <span>Verification</span>
+      <strong>{{ webVerification ? 'On' : 'Off' }}</strong>
+    </div>
+    <div>
+      <span>Web score</span>
+      <strong>{{ latestVerification?.overall_score ?? 0 | number:'1.0-0' }}</strong>
+    </div>
+  </section>
 
   <section class="workspace">
     <aside class="left-rail">
@@ -25,6 +50,14 @@
         <label class="field">
           <span>Focus skills</span>
           <input [(ngModel)]="focusSkills" placeholder="Python, RAG, Angular">
+        </label>
+
+        <label class="toggle-row">
+          <input type="checkbox" [(ngModel)]="webVerification">
+          <span>
+            <strong>Web verification</strong>
+            <small>Check factual claims with citations</small>
+          </span>
         </label>
 
         <div class="upload-list">
@@ -100,9 +133,12 @@
 
     <section class="interview">
       <div class="panel interview-panel">
-        <div class="panel-title">
-          <lucide-icon name="brain-circuit" [size]="18"></lucide-icon>
-          <h2>Interview</h2>
+        <div class="panel-title split-title">
+          <div>
+            <lucide-icon name="brain-circuit" [size]="18"></lucide-icon>
+            <h2>Interview</h2>
+          </div>
+          <span class="pill" [class.on]="session">{{ session ? 'Live' : 'Ready' }}</span>
         </div>
 
         <div class="conversation" aria-live="polite">
@@ -117,10 +153,16 @@
 
         <form class="answer-box" (ngSubmit)="sendAnswer()">
           <textarea [(ngModel)]="answer" name="answer" rows="5" placeholder="Type your answer"></textarea>
-          <button class="primary send" type="submit" [disabled]="!session || !answer.trim()">
-            <lucide-icon name="send" [size]="18"></lucide-icon>
-            Send
-          </button>
+          <div class="answer-actions">
+            <button type="button" (click)="verifyDraftAnswer()" [disabled]="!answer.trim()">
+              <lucide-icon name="globe-2" [size]="18"></lucide-icon>
+              Verify
+            </button>
+            <button class="primary send" type="submit" [disabled]="!session || !answer.trim()">
+              <lucide-icon name="send" [size]="18"></lucide-icon>
+              Send
+            </button>
+          </div>
         </form>
       </div>
     </section>
@@ -145,6 +187,52 @@
         </ng-template>
       </section>
 
+      <section class="panel verification-panel">
+        <div class="panel-title split-title">
+          <div>
+            <lucide-icon name="shield-check" [size]="18"></lucide-icon>
+            <h2>Verification</h2>
+          </div>
+          <span class="verdict-chip" [ngClass]="verdictClass(latestVerification?.overall_verdict)">
+            {{ verdictLabel(latestVerification?.overall_verdict) }}
+          </span>
+        </div>
+
+        <ng-container *ngIf="latestVerification; else noVerification">
+          <div class="verification-summary">
+            <strong>{{ latestVerification.overall_score | number:'1.0-1' }}/100</strong>
+            <p>{{ latestVerification.summary }}</p>
+          </div>
+
+          <div class="corrected-answer">
+            <small>Source-backed answer</small>
+            <p>{{ latestVerification.corrected_answer }}</p>
+          </div>
+
+          <div class="claim-list">
+            <article *ngFor="let claim of latestVerification.claims" class="claim" [ngClass]="verdictClass(claim.verdict)">
+              <div>
+                <strong>{{ verdictLabel(claim.verdict) }}</strong>
+                <small>{{ claim.confidence | number:'1.0-2' }} confidence</small>
+              </div>
+              <p>{{ claim.claim }}</p>
+              <small>{{ claim.explanation }}</small>
+            </article>
+          </div>
+
+          <div class="source-links" *ngIf="latestVerification.sources.length">
+            <a *ngFor="let source of latestVerification.sources" [href]="source.url" target="_blank" rel="noreferrer">
+              <span>{{ source.title }}</span>
+              <lucide-icon name="external-link" [size]="14"></lucide-icon>
+            </a>
+          </div>
+        </ng-container>
+
+        <ng-template #noVerification>
+          <p class="muted">No web check yet.</p>
+        </ng-template>
+      </section>
+
       <section class="panel">
         <div class="panel-title">
           <lucide-icon name="file-text" [size]="18"></lucide-icon>
@@ -154,7 +242,7 @@
           <article *ngFor="let item of latestEvidence" class="evidence">
             <div>
               <strong>{{ item.source_type }}</strong>
-              <small>{{ item.section || 'section' }} · {{ item.score | number:'1.2-2' }}</small>
+              <small>{{ item.section || 'section' }} - {{ item.score | number:'1.2-2' }}</small>
             </div>
             <p>{{ item.text }}</p>
           </article>

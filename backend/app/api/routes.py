@@ -18,6 +18,8 @@ from app.schemas import (
     ReportResponse,
     StartInterviewRequest,
     StartInterviewResponse,
+    VerificationRequest,
+    VerificationResponse,
     VideoUploadResponse,
 )
 from app.services.interview_service import InterviewService
@@ -97,7 +99,11 @@ async def start_interview(request: StartInterviewRequest) -> StartInterviewRespo
 @router.post("/interviews/{session_id}/answer", response_model=AnswerResponse)
 async def answer_question(session_id: str, request: AnswerRequest) -> AnswerResponse:
     try:
-        session, turn = await interview_service.submit_answer(session_id, request.answer)
+        session, turn = await interview_service.submit_answer(
+            session_id,
+            request.answer,
+            web_verification=request.web_verification,
+        )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -107,7 +113,19 @@ async def answer_question(session_id: str, request: AnswerRequest) -> AnswerResp
         scores=turn.scores,
         next_question=session.current_question,
         evidence=[to_evidence_item(item) for item in turn.evidence],
+        verification=to_verification_response(turn.verification),
     )
+
+
+@router.post("/verification/check", response_model=VerificationResponse)
+async def check_answer_verification(request: VerificationRequest) -> VerificationResponse:
+    report = await interview_service.verification_service.verify_answer(
+        answer=request.answer,
+        question=request.question,
+        role_title=request.role_title,
+        max_claims=request.max_claims,
+    )
+    return VerificationResponse(**asdict(report))
 
 
 @router.post("/interviews/{session_id}/video", response_model=VideoUploadResponse)
@@ -144,6 +162,7 @@ async def interview_report(session_id: str) -> ReportResponse:
                 "feedback": turn.feedback,
                 "scores": turn.scores,
                 "evidence": [to_evidence_item(item) for item in turn.evidence],
+                "verification": to_verification_response(turn.verification),
                 "created_at": turn.created_at,
             }
             for turn in session.turns
@@ -158,3 +177,8 @@ def to_evidence_item(item) -> EvidenceItem:
     data = asdict(item)
     return EvidenceItem(**data)
 
+
+def to_verification_response(data: dict | None) -> VerificationResponse | None:
+    if not data:
+        return None
+    return VerificationResponse(**data)

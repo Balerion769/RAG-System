@@ -17,6 +17,14 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "gpt-oss:20b"
 
+    web_search_provider: str = "duckduckgo"
+    web_search_enabled: bool = True
+    web_fetch_pages: bool = True
+    web_max_results: int = 5
+    web_request_timeout_seconds: float = 8.0
+    brave_search_api_key: str = ""
+    tavily_api_key: str = ""
+
     embedding_provider: str = "hashing"
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     reranker_provider: str = "heuristic"

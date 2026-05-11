@@ -30,6 +30,7 @@ export interface AnswerResponse {
   scores: Record<string, number>;
   next_question: string;
   evidence: EvidenceItem[];
+  verification: VerificationResponse | null;
 }
 
 export interface ReportResponse {
@@ -48,6 +49,7 @@ export interface InterviewTurn {
   feedback: string;
   scores: Record<string, number>;
   evidence: EvidenceItem[];
+  verification: VerificationResponse | null;
   created_at: string;
 }
 
@@ -58,3 +60,31 @@ export interface VideoUploadResponse {
   metrics: Record<string, unknown>;
 }
 
+export interface WebSourceItem {
+  title: string;
+  url: string;
+  snippet: string;
+  provider: string;
+  fetched_text: string;
+  score: number;
+}
+
+export interface ClaimCheckItem {
+  claim: string;
+  verdict: string;
+  confidence: number;
+  explanation: string;
+  sources: WebSourceItem[];
+}
+
+export interface VerificationResponse {
+  enabled: boolean;
+  provider: string;
+  overall_verdict: string;
+  overall_score: number;
+  summary: string;
+  corrected_answer: string;
+  claims: ClaimCheckItem[];
+  sources: WebSourceItem[];
+  limitations: string[];
+}
