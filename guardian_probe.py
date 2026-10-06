@@ -1,7 +1,7 @@
 """Unexecuted security scanner probe; this branch must never be merged."""
 
 
-def security_probe() -> object:
-    """Contain a deliberate tainted eval sink for the scanner smoke check."""
+def security_probe() -> str:
+    """Return input as text without interpreting it as executable code."""
     user_expression = input("Expression: ")
-    return eval(user_expression)
+    return user_expression
